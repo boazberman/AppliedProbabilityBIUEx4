@@ -18,24 +18,24 @@ def generateOutputFile(developmentSetFilename, outputFilename):
 
     with open(developmentSetFilename, 'rb') as input_file:
         input_file_data = input_file.read()
-    words = parse_file_data(input_file_data)
+    articles = parse_file_data(input_file_data)
 
 
 def parse_file_data(file_data):
     '''
-    parses the input file to a sequence (list) of words
+    Parses the input file to a sequence (list) of articles
     @param file_data: the input file text
-    @return: a list of the files words
+    @return: a list of articles
     '''
     # starting from the 3rd line, every 4th line is an article
-    file_lines = file_data.splitlines()[2::4]
-    # every article ends with a trailing space,
-    # so we get a string with all the words separated by one space
-    words = ''.join(file_lines)
-    # remove the last trailing space
-    words = words[:-1]
+    articles = file_data.splitlines()[2::4]
+    # # every article ends with a trailing space,
+    # # so we get a string with all the words separated by one space
+    # words = ''.join(file_lines)
+    # remove the last trailing space of each article
+    articles = [article[:-1] for article in articles]
     # create a list of all the words
-    return words.split(' ')
+    return articles
 
 
 def main():
