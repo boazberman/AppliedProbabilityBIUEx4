@@ -2,10 +2,9 @@ import sys
 import time
 
 
-def generateOutputFile(developmentSetFilename, testSetFilename, outputFilename):
+def generateOutputFile(developmentSetFilename, outputFilename):
     print "Started with: "
     print "\tDevelopment set filename: %s" % developmentSetFilename
-    print "\tTest set filename: %s" % testSetFilename
     print "\tOutput filename: %s" % outputFilename
     vocabularySize = 300000
 
@@ -46,12 +45,9 @@ def main():
     #  sys.exit(1)
 
     development_file_path = sys.argv[1]
-    test_file_path = sys.argv[2]
-    # first_input_word = sys.argv[3]
-    # second_input_word = sys.argv[4]
-    output_file_path = sys.argv[3]
+    output_file_path = sys.argv[2]
 
-    generateOutputFile(development_file_path, test_file_path, output_file_path)
+    generateOutputFile(development_file_path, output_file_path)
 
 
 if __name__ == '__main__':
