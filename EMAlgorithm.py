@@ -2,8 +2,11 @@ import math
 
 class EMAlgorithm:
 
-    def __init__(self, articels, numClusters):
+    def __init__(self, articels, numClusters, vocabolarySize):
         self.k = 10
+        self.epsilon = 0.000001
+        self.lamda = 0.0001
+        self.vocabolarySize = vocabolarySize
         self.first = True
         self.numClusters = numClusters
         self.articels = articels
@@ -37,17 +40,30 @@ class EMAlgorithm:
     def allzi(self):
         allzi = {}
         for cluster in self.clusters:
-            allzi[cluster] = math.log(self.pCi[cluster]) + sum([math.log(self.pik[(word, cluster)]) * article.histogram[word] for word in article.histogram.keys() for article in self.articels])
+            for article in self.articels:
+                allzi[(cluster,article)] = math.log(self.pCi[cluster]) + sum([math.log(self.pik[(word, cluster)]) * article.histogram[word] for word in article.histogram.keys()])
 
-        return allzi;
+        return allzi
 
 
     def calcwti(self, article, cluster, allzi, maxzi):
-        if(allzi[cluster] - maxzi < -1 * self.k):
+        if(allzi[(cluster,article)] - maxzi < -1 * self.k):
             return 0
-        mechane = sum([math.pow(math.e, allzi[subcluster] - maxzi) for subcluster in self.clusters if
-                    allzi[subcluster] - maxzi >= -1 * self.k])
-        return math.pow(math.e, allzi[cluster] - maxzi) / mechane
+        mechane = sum([math.pow(math.e, allzi[(subcluster,article)] - maxzi) for subcluster in self.clusters if
+                       allzi[subcluster,article] - maxzi >= -1 * self.k])
+        return math.pow(math.e, allzi[(cluster,article)] - maxzi) / mechane
+
+
+    def fixPCIprobability(self):
+        sum = sum(self.pCi)
+        for i in xrange(1,self.numClusters,1):
+            self.pCi[i] /= sum
+
+    def fixPIKptobability(self):
+        sum = sum(self.pik)
+        for i in xrange(1,self.numClusters,1):
+            for word in self.words:
+                self.pik[word,i] /= sum
 
 
     def algorithm(self):
@@ -60,6 +76,11 @@ class EMAlgorithm:
         for i in xrange(1,self.numClusters,1):
             self.pCi[i] = sum([probability for (doc, j), probability in self.wti.iteritems() if j == i])
             self.pCi[i] /= len(self.articels)
+            if(self.pCi[i] < self.epsilon):
+                self.pCi[i] = self.epsilon
+
+        if(sum(self.pCi) != 1):
+            self.fixPCIprobability()
 
         for word in self.words:
             for cluster in self.clusters:
@@ -67,11 +88,17 @@ class EMAlgorithm:
                 for article in self.articels:
                     mona += article.histogram[word] * self.wti[(article, cluster)]
                     mechane += article.wordsLen * self.wti[(article, cluster)]
-                self.pik[(word, cluster)] = mona / mechane
+                    if(mona == 0):
+                        mona += self.lamda
+                        mechane += self.vocabolarySize*self.lamda
+                    self.pik[word,cluster] = mona / mechane
+
+        if(sum(self.pik) != 1):
+            self.fixPIKptobability()
 
     def e_step(self):
         allzi = self.allzi()
-        maxzi = max(allzi)
+        maxzi = max(allzi.values())
         for article in self.articels:
             for cluster in self.clusters:
                 self.wti[(article, cluster)] = self.calcwti(article, cluster, allzi, maxzi)
