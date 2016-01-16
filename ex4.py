@@ -2,12 +2,10 @@ import sys
 import time
 
 
-def generateOutputFile(developmentSetFilename, testSetFilename, firstInputWord, secondInputWord, outputFilename):
+def generateOutputFile(developmentSetFilename, testSetFilename, outputFilename):
     print "Started with: "
     print "\tDevelopment set filename: %s" % developmentSetFilename
     print "\tTest set filename: %s" % testSetFilename
-    print "\tInput word: %s" % firstInputWord
-    print "\tInput word2: %s" % secondInputWord
     print "\tOutput filename: %s" % outputFilename
     vocabularySize = 300000
 
@@ -21,24 +19,24 @@ def generateOutputFile(developmentSetFilename, testSetFilename, firstInputWord, 
 
     with open(developmentSetFilename, 'rb') as input_file:
         input_file_data = input_file.read()
-    words = parse_file_data(input_file_data)
+    articles = parse_file_data(input_file_data)
 
 
 def parse_file_data(file_data):
     '''
-    parses the input file to a sequence (list) of words
+    Parses the input file to a sequence (list) of articles
     @param file_data: the input file text
-    @return: a list of the files words
+    @return: a list of articles
     '''
     # starting from the 3rd line, every 4th line is an article
-    file_lines = file_data.splitlines()[2::4]
-    # every article ends with a trailing space,
-    # so we get a string with all the words separated by one space
-    words = ''.join(file_lines)
-    # remove the last trailing space
-    words = words[:-1]
+    articles = file_data.splitlines()[2::4]
+    # # every article ends with a trailing space,
+    # # so we get a string with all the words separated by one space
+    # words = ''.join(file_lines)
+    # remove the last trailing space of each article
+    articles = [article[:-1] for article in articles]
     # create a list of all the words
-    return words.split(' ')
+    return articles
 
 
 def main():
@@ -49,11 +47,11 @@ def main():
 
     development_file_path = sys.argv[1]
     test_file_path = sys.argv[2]
-    first_input_word = sys.argv[3]
-    second_input_word = sys.argv[4]
-    output_file_path = sys.argv[5]
+    # first_input_word = sys.argv[3]
+    # second_input_word = sys.argv[4]
+    output_file_path = sys.argv[3]
 
-    generateOutputFile(development_file_path, test_file_path, first_input_word, second_input_word, output_file_path)
+    generateOutputFile(development_file_path, test_file_path, output_file_path)
 
 
 if __name__ == '__main__':
