@@ -1,5 +1,4 @@
 import math
-from itertools import groupby
 
 class EMAlgorithm:
 
@@ -86,10 +85,10 @@ class EMAlgorithm:
         # if(lastlikelihood != None and likelihood < lastlikelihood):
             #   break
         lastlikelihood = likelihood
-        perplexity = math.pow(math.e, -1 * math.log(lastlikelihood) / len(self.articels))
+        perplexity = self.calc_perplexity(lastlikelihood)
 
-
-
+    def calc_perplexity(self, lastlikelihood):
+        return math.pow(math.e, -1 * lastlikelihood / len(self.articels))
 
     def m_step(self):
         for i in xrange(self.numClusters):
