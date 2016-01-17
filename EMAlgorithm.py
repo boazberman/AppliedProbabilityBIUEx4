@@ -9,7 +9,7 @@ class EMAlgorithm:
         self.lamda = 1
         self.vocabolarySize = vocabolarySize
         self.numClusters = numClusters
-        self.articels = articels
+        self.articles = articels
         self.clusters = {}
         self.words = self.initWords()
         self.wti = {}
@@ -18,19 +18,19 @@ class EMAlgorithm:
         self.initClusters()
 
     def initClusters(self):
-        for i in xrange(len(self.articels)):
+        for i in xrange(len(self.articles)):
             if(i%self.numClusters not in self.clusters or self.clusters[i%self.numClusters] is None):
                 self.clusters[i%self.numClusters] = []
-            self.clusters[i%self.numClusters].append(self.articels[i])
+            self.clusters[i%self.numClusters].append(self.articles[i])
 
     def initWords(self):
         words = []
-        for article in self.articels:
+        for article in self.articles:
             words += article.histogram.keys()
         return set(words)
 
     def initWti(self):
-        for article in self.articels:
+        for article in self.articles:
             for i in xrange(self.numClusters):
                 if(article in self.clusters[i]):
                     self.wti[(article, i)] = 1
@@ -40,8 +40,10 @@ class EMAlgorithm:
     def allzi(self):
         allzi = {}
         for cluster in self.clusters:
-            for article in self.articels:
-                allzi[(cluster, article)] = math.log(self.pCi[cluster]) + sum([math.log(self.pik[(word, cluster)]) * article.histogram[word] for word in article.histogram.keys()])
+            for article in self.articles:
+                allzi[(cluster, article)] = math.log(self.pCi[cluster]) + \
+                                            sum([math.log(self.pik[(word, cluster)]) *
+                                                                               article.histogram[word] for word in article.histogram.keys()])
 
         return allzi
 
@@ -92,11 +94,7 @@ class EMAlgorithm:
         for i in xrange(self.numClusters):
             # SPEED - groupby optimization
             self.pCi[i] = sum(probability for (doc, j), probability in self.wti.iteritems() if j == i)
-            # self.pCi[i] = 0
-            # for (doc,j),prob in self.wti.iteritems():
-            #     if i==j:
-            #         self.pCi[i] += prob
-            self.pCi[i] /= len(self.articels)
+            self.pCi[i] /= len(self.articles)
             if (self.pCi[i] < self.epsilon):
                 self.pCi[i] = self.epsilon
         if (sum(self.pCi) != 1):
@@ -104,7 +102,7 @@ class EMAlgorithm:
         for word in self.words:
             for cluster in self.clusters:
                 mona, mechane = 0.0, 0.0
-                for article in self.articels:
+                for article in self.articles:
                     mona += article.histogram[word] * self.wti[(article, cluster)]
                     mechane += article.wordsLen * self.wti[(article, cluster)]
                     if (mona == 0):
@@ -116,7 +114,7 @@ class EMAlgorithm:
 
     def e_step(self, allzi, maxzi):
         # Calculate wti through all articles and clusters.
-        for article in self.articels:
+        for article in self.articles:
             for cluster in self.clusters:
                 self.wti[(article, cluster)] = self.calcwti(article, cluster, allzi, maxzi[article])
 
@@ -124,15 +122,20 @@ class EMAlgorithm:
         allzi = self.allzi()
         # Calculate max zi for each document through all clusters.
         maxzi = {}
-        iterable = sorted(allzi.iteritems(), key=lambda tup: tup[0][1])
-        for article, values in groupby(iterable, key=lambda key: key[1]):
-            maxzi[article] = max(zivalue for key, zivalue in values)
+        for (cluster, article), zivalue in allzi.iteritems():
+            if article not in maxzi or maxzi[article] is None or maxzi[article] < zivalue:
+                maxzi[article] = zivalue
         return allzi, maxzi
 
     def likelihood(self, allzi, maxzi):
-        total = 0.0
-
-        for article in self.articels:
-            total += maxzi[article] + math.log(sum(math.pow(math.e, zi - maxzi[article]) for zi in allzi.itervalues() if zi - maxzi[article] > -1 * self.k))
+        totalByArticle = {}
+        for article in self.articles:
+            totalByArticle[article] = 0
+        for (cluster, article), zi in allzi.iteritems():
+            if zi - maxzi[article] >= -1 * self.k:
+                totalByArticle[article] += math.pow(math.e, zi - maxzi[article])
+        for article in self.articles:
+            totalByArticle[article] = maxzi[article] + math.log(totalByArticle[article])
+        total = sum(totalByArticle.itervalues())
 
         return total
