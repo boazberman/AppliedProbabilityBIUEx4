@@ -1,8 +1,12 @@
 import sys
 import time
+from EMAlgorithm import EMAlgorithm
+from Article import Article
 
+NUM_CLUSTERS = 9
 
 def generateOutputFile(developmentSetFilename, outputFilename):
+    global NUM_CLUSTERS
     print "Started with: "
     print "\tDevelopment set filename: %s" % developmentSetFilename
     print "\tOutput filename: %s" % outputFilename
@@ -10,15 +14,14 @@ def generateOutputFile(developmentSetFilename, outputFilename):
 
     file = open(outputFilename, "w+")
     # file.write("#Students:\tSaar Arbel\tBoaz Berman\t315681775\t311504401\n")
-    # file.write("Output1: " + developmentSetFilename + "\n")
-    # file.write("Output2: " + testSetFilename + "\n")
-    # file.write("Output3: " + firstInputWord + " " + secondInputWord + "\n")
-    # file.write("Output4: " + outputFilename + "\n")
-    # file.write("Output5: " + str(vocabularySize) + "\n")
 
     with open(developmentSetFilename, 'rb') as input_file:
         input_file_data = input_file.read()
     articles = parse_file_data(input_file_data)
+    typedArticles = [Article(article) for article in articles]
+
+    emAlgorithm = EMAlgorithm(typedArticles, NUM_CLUSTERS , vocabularySize)
+    emAlgorithm.algorithm()
 
 
 def parse_file_data(file_data):

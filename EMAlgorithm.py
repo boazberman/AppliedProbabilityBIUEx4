@@ -6,7 +6,7 @@ class EMAlgorithm:
     def __init__(self, articels, numClusters, vocabolarySize):
         self.k = 10
         self.epsilon = 0.000001
-        self.lamda = 0.0001
+        self.lamda = 1
         self.vocabolarySize = vocabolarySize
         self.numClusters = numClusters
         self.articels = articels
@@ -14,11 +14,11 @@ class EMAlgorithm:
         self.words = self.initWords()
         self.wti = {}
         self.pik = {}
-        self.pCi = []
+        self.pCi = [0 for i in xrange(numClusters)]
         self.initClusters()
 
     def initClusters(self):
-        for i in xrange(1,len(self.articels),1):
+        for i in xrange(len(self.articels)):
             if(i%self.numClusters not in self.clusters or self.clusters[i%self.numClusters] is None):
                 self.clusters[i%self.numClusters] = []
             self.clusters[i%self.numClusters].append(self.articels[i])
@@ -29,9 +29,9 @@ class EMAlgorithm:
             words += article.histogram.keys()
         return set(words)
 
-    def initDocumentToCategoryProbability(self):
+    def initWti(self):
         for article in self.articels:
-            for i in xrange(1,self.numClusters,1):
+            for i in xrange(self.numClusters):
                 if(article in self.clusters[i]):
                     self.wti[(article, i)] = 1
                 else:
@@ -55,41 +55,47 @@ class EMAlgorithm:
 
 
     def fixPCIprobability(self):
-        sum = sum(self.pCi)
-        for i in xrange(1,self.numClusters,1):
-            self.pCi[i] /= sum
+        pciSum = sum(self.pCi)
+        for i in xrange(self.numClusters):
+            self.pCi[i] /= pciSum
 
     def fixPIKProbability(self):
-        sum = sum(self.pik)
-        for i in xrange(1,self.numClusters,1):
+        pikSum = sum(self.pik.itervalues())
+        for i in xrange(self.numClusters):
             for word in self.words:
-                self.pik[word,i] /= sum
+                self.pik[(word,i)] /= pikSum
 
 
     def algorithm(self):
         lastlikelihood = None
         allzi, maxzi = None, None
-        while True:
-            # E-Step
-            if(lastlikelihood != None):
-                self.e_step(allzilist, maxzi)
-            else:
-                self.first = False
-            # M-Step
-            self.m_step()
-            allzilist, maxzi = self.calc_zi()
-            # Likelihood
-            likelihood = self.likelihood(allzilist, maxzi)
-            if(lastlikelihood != None and likelihood < lastlikelihood):
-                break
-            lastlikelihood = likelihood
+        # while True:
+        # E-Step
+        # if(lastlikelihood != None):
+        #     self.e_step(allzilist, maxzi)
+        # else:
+        self.initWti()
+        self.first = False
+        # M-Step
+        self.m_step()
+        allziDict, maxzi = self.calc_zi()
+        # Likelihood
+        likelihood = self.likelihood(allziDict, maxzi)
+        # if(lastlikelihood != None and likelihood < lastlikelihood):
+            #   break
+        lastlikelihood = likelihood
 
 
 
 
     def m_step(self):
-        for i in xrange(1, self.numClusters, 1):
-            self.pCi[i] = sum([probability for (doc, j), probability in self.wti.iteritems() if j == i])
+        for i in xrange(self.numClusters):
+            # SPEED - groupby optimization
+            self.pCi[i] = sum(probability for (doc, j), probability in self.wti.iteritems() if j == i)
+            # self.pCi[i] = 0
+            # for (doc,j),prob in self.wti.iteritems():
+            #     if i==j:
+            #         self.pCi[i] += prob
             self.pCi[i] /= len(self.articels)
             if (self.pCi[i] < self.epsilon):
                 self.pCi[i] = self.epsilon
@@ -104,8 +110,8 @@ class EMAlgorithm:
                     if (mona == 0):
                         mona += self.lamda
                         mechane += self.vocabolarySize * self.lamda
-                    self.pik[word, cluster] = mona / mechane
-        if (sum(self.pik) != 1):
+                    self.pik[(word, cluster)] = mona / mechane
+        if (sum(self.pik.itervalues()) != 1):
             self.fixPIKProbability()
 
     def e_step(self, allzi, maxzi):
@@ -118,7 +124,8 @@ class EMAlgorithm:
         allzi = self.allzi()
         # Calculate max zi for each document through all clusters.
         maxzi = {}
-        for article, values in groupby(sorted(allzi, key=lambda tup: tup[0][1]), key=lambda key: key[1]):
+        iterable = sorted(allzi.iteritems(), key=lambda tup: tup[0][1])
+        for article, values in groupby(iterable, key=lambda key: key[1]):
             maxzi[article] = max(zivalue for key, zivalue in values)
         return allzi, maxzi
 
@@ -126,6 +133,6 @@ class EMAlgorithm:
         total = 0.0
 
         for article in self.articels:
-            total += maxzi[article] + math.log(sum(math.pow(math.e, zi - maxzi[article]) for zi in allzi if zi - maxzi[article] > -1 * self.k))
+            total += maxzi[article] + math.log(sum(math.pow(math.e, zi - maxzi[article]) for zi in allzi.itervalues() if zi - maxzi[article] > -1 * self.k))
 
         return total
