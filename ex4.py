@@ -9,6 +9,7 @@ def generateOutputFile(developmentSetFilename, topicsFileName):
     global NUM_CLUSTERS
     print "Started with: "
     print "\tDevelopment set filename: %s" % developmentSetFilename
+    print "\tTopic filename: %s" % topicsFileName
     vocabularySize = 300000
 
     # file.write("#Students:\tSaar Arbel\tBoaz Berman\t315681775\t311504401\n")
