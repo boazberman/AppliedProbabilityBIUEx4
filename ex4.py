@@ -5,24 +5,40 @@ from Article import Article
 
 NUM_CLUSTERS = 9
 
-def generateOutputFile(developmentSetFilename, outputFilename):
+def generateOutputFile(developmentSetFilename, topicsFileName):
     global NUM_CLUSTERS
     print "Started with: "
     print "\tDevelopment set filename: %s" % developmentSetFilename
-    print "\tOutput filename: %s" % outputFilename
     vocabularySize = 300000
 
-    file = open(outputFilename, "w+")
     # file.write("#Students:\tSaar Arbel\tBoaz Berman\t315681775\t311504401\n")
 
     with open(developmentSetFilename, 'rb') as input_file:
         input_file_data = input_file.read()
     articles = parse_file_data(input_file_data)
+
+    with open(topicsFileName, 'rb') as topic_file:
+        topics_file_data = topic_file.read()
+    topics = parse_topic_data(topics_file_data)
+    createConfusionMatrix(topics)
+
     typedArticles = [Article(article) for article in articles]
 
-    emAlgorithm = EMAlgorithm(typedArticles, NUM_CLUSTERS , vocabularySize)
-    emAlgorithm.algorithm()
+    # emAlgorithm = EMAlgorithm(typedArticles, NUM_CLUSTERS , vocabularySize)
+    # emAlgorithm.algorithm()
 
+def createConfusionMatrix(topics):
+    global NUM_CLUSTERS
+    # matrix = [[0 for i in xrange(len(topics+1))] for i in xrange(NUM_CLUSTERS)]
+    matrix = []
+    for i in xrange(NUM_CLUSTERS):
+        new = []
+        for j in xrange(len(topics)+1):
+            new.append(0)
+        matrix.append(new)
+
+def parse_topic_data(topic_data):
+    return topic_data.splitlines()[::2]
 
 def parse_file_data(file_data):
     '''
@@ -48,9 +64,9 @@ def main():
     #  sys.exit(1)
 
     development_file_path = sys.argv[1]
-    output_file_path = sys.argv[2]
+    topic_file_path = sys.argv[2]
 
-    generateOutputFile(development_file_path, output_file_path)
+    generateOutputFile(development_file_path, topic_file_path)
 
 
 if __name__ == '__main__':

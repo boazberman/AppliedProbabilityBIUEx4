@@ -84,6 +84,7 @@ class EMAlgorithm:
         # if(lastlikelihood != None and likelihood < lastlikelihood):
             #   break
         lastlikelihood = likelihood
+        perplexity = math.pow(math.e, -1 * math.log(lastlikelihood) / len(self.articels))
 
 
 
