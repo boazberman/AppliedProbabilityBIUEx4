@@ -1,5 +1,4 @@
-from collections import Counter
-
+# Saar Arbel 315681775, Boaz Berman 311504401
 class Article:
     def __init__(self,histogram,len, clusters):
         # words = wholeArticle.split(' ')

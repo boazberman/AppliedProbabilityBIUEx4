@@ -1,3 +1,4 @@
+# Saar Arbel 315681775, Boaz Berman 311504401
 import sys
 import time
 from EMAlgorithm import EMAlgorithm
@@ -34,17 +35,30 @@ def generateOutputFile(developmentSetFilename, topicsFileName):
     # typedArticles = [Article(article, info) for info, article in articlesWithInfo]
     #
     emAlgorithm = EMAlgorithm(article_list, NUM_CLUSTERS , len(vocabulary), topics, calcWordsLength(article_list))
-    emAlgorithm.algorithm()
-    # emAlgorithm.calcFinalClusters()
-    # clusters = emAlgorithm.clusters
-    # print clusters.keys()
-    # createConfusionMatrix(topics,clusters)
+    confusion_matrix = emAlgorithm.algorithm()
+    print "Confusion Matrix:"
+    print '\n'.join(map('\t|\t'.join, [map(str, item) for item in prettify_confusion_matrix(topics, confusion_matrix)]))
 
 def calcWordsLength(article_list):
     sum = 0
     for article in article_list:
         sum += article.wordsLen
     return sum
+
+def prettify_confusion_matrix(topics, confusion_matrix):
+    for row in confusion_matrix:
+        # Add cluster size column
+        row.append(sum(row))
+        # Add max in row column
+        row.append(max(row[:-1]))
+    # Sort by max
+    pretty = sorted(confusion_matrix, key=lambda line: line[-1], reverse=True)
+    # Add id
+    for i in xrange(len(pretty)):
+        pretty[i].insert(0, i)
+    # Add header row at the start of the matrix
+    pretty.insert(0, [" "] + topics + ["cluster size", "max"])
+    return pretty
 
 def parse_articles(file_data, filter_word_set=set()):
     '''

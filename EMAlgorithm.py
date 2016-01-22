@@ -1,19 +1,22 @@
+# Saar Arbel 315681775, Boaz Berman 311504401
 import math
+import itertools
 
 NUM_CLUSTERS = 9
-LIKELHOOD_TESHOLD = 20.0
+LIKELIHOOD_THRESHOLD = 20.0
+K = 10
+
 
 class EMAlgorithm:
-    def __init__(self, articels, numClusters, ditinctWordLength, topics, wordsTotalLength):
-        self.k = 10
+    def __init__(self, articles, numClusters, ditinctWordLength, topics, wordsTotalLength):
         self.wordsTotalLength = wordsTotalLength
         self.epsilon = 0.00001
         self.lamda = 1.1
         self.ditinctWordLength = ditinctWordLength
         self.numClusters = numClusters
-        self.articles = articels
+        self.articles = articles
         self.clusters = {}
-        self.words = self.initWords()
+        self.words = self.get_all_distinct_words()
         self.wti = {}
         self.pik = {}
         self.pCi = [0 for i in xrange(numClusters)]
@@ -26,13 +29,13 @@ class EMAlgorithm:
                 self.clusters[i % self.numClusters] = []
             self.clusters[i % self.numClusters].append(self.articles[i])
 
-    def initWords(self):
+    def get_all_distinct_words(self):
         words = set()
         for article in self.articles:
             words.update(article.histogram.keys())
         return words
 
-    def initWti(self):
+    def first_e_step(self):
         for article in self.articles:
             for cluster in xrange(self.numClusters):
                 if (article in self.clusters[cluster]):
@@ -40,7 +43,7 @@ class EMAlgorithm:
                 else:
                     self.wti[(article, cluster)] = 0.0
 
-    def allzi(self):
+    def calc_all_zi(self):
         allzi = {}
         for cluster in xrange(self.numClusters):
             for article in self.articles:
@@ -50,11 +53,13 @@ class EMAlgorithm:
 
         return allzi
 
-    def calcwti(self, article, cluster, allzi, maxzi):
-        if (allzi[(cluster, article)] - maxzi < -1.0 * self.k):
+    def calc_wti(self, article, cluster, allzi, maxzi):
+        global K
+        if (allzi[(cluster, article)] - maxzi < -1.0 * K):
             return 0.0
-        mechane = sum([math.pow(math.e, allzi[(subcluster, article)] - maxzi) for subcluster in xrange(self.numClusters) if
-                       allzi[(subcluster, article)] - maxzi >= -1.0 * self.k])
+        mechane = sum(
+            [math.pow(math.e, allzi[(subcluster, article)] - maxzi) for subcluster in xrange(self.numClusters) if
+             allzi[(subcluster, article)] - maxzi >= -1.0 * K])
         return math.pow(math.e, allzi[(cluster, article)] - maxzi) / mechane
 
     def fixPCIprobability(self):
@@ -69,30 +74,35 @@ class EMAlgorithm:
                 self.pik[(word, cluster)] /= pikSum
 
     def algorithm(self):
-        lastlikelihood = None
-        allziDict, maxzi = None, None
-        while True:
+        last_likelihood = None
+        all_zi, m_zi = None, None
+        # while True:
+        for iteration in itertools.count(1):
             # E-Step
-            if (lastlikelihood != None):
-                self.e_step(allziDict, maxzi)
+            if (last_likelihood != None):
+                self.e_step(all_zi, m_zi)
             else:
-                self.initWti()
-                self.first = False
+                self.first_e_step()
             # M-Step
             self.m_step()
-            allziDict, maxzi = self.calc_zi()
-            # Likelihood
-            likelihood = self.likelihood(allziDict, maxzi)
-            print "likelhood" + str(likelihood)
-            if (lastlikelihood != None and likelihood-lastlikelihood <= LIKELHOOD_TESHOLD):
-                self.e_step(allziDict, maxzi)
-                print str("accuracy=") + str(self.createConfusionMatrix()) + '\n'
-                break
-            lastlikelihood = likelihood
-            perplexity = self.calc_perplexity(lastlikelihood)
-            print str("perplexity=") + str(perplexity)
-            print str("accuracy=") + str(self.createConfusionMatrix()) + '\n'
-
+            # Statistics
+            all_zi = self.calc_all_zi()
+            m_zi = self.find_m_zi(all_zi)
+            likelihood = self.likelihood(all_zi, m_zi)
+            perplexity = self.calc_perplexity(likelihood)
+            confusion_matrix = self.calc_confusion_matrix()
+            accuracy = self.calc_accuracy(confusion_matrix)
+            # Printers
+            print "Iteration no. #" + str(iteration)
+            print "\tLikelihood: " + str(likelihood)
+            print "\tPerplexity: " + str(perplexity)
+            print "\tAccuracy: " + str(accuracy) + '\n'
+            # Condition
+            # If the new calculated likelihood isn't smaller from the last likelihood by at least the
+            # given threshold, we're done.
+            if (last_likelihood != None and likelihood - last_likelihood <= LIKELIHOOD_THRESHOLD):
+                return confusion_matrix
+            last_likelihood = likelihood
 
     def calc_perplexity(self, lnlikelihood):
         perplexity_extension = -1 * (lnlikelihood / float(self.wordsTotalLength))
@@ -112,12 +122,13 @@ class EMAlgorithm:
                 wordMechaneDict[cluster] = 0.0
             wordMechaneDict[cluster] += article.wordsLen * prob
         for (word, cluster), mona in wordMonaDict.iteritems():
-            self.pik[(word, cluster)] = ((mona + self.lamda) / (wordMechaneDict[cluster] + (self.ditinctWordLength * self.lamda)))
-
+            self.pik[(word, cluster)] = (
+                (mona + self.lamda) / (wordMechaneDict[cluster] + (self.ditinctWordLength * self.lamda)))
 
     def calc_pci(self):
         for cluster in xrange(self.numClusters):
-            self.pCi[cluster] = sum(probability for (doc, somecluster), probability in self.wti.iteritems() if somecluster == cluster)
+            self.pCi[cluster] = sum(
+                probability for (doc, somecluster), probability in self.wti.iteritems() if somecluster == cluster)
             self.pCi[cluster] /= len(self.articles)
             if (self.pCi[cluster] < self.epsilon):
                 self.pCi[cluster] = self.epsilon
@@ -129,89 +140,90 @@ class EMAlgorithm:
         # Calculate wti through all articles and clusters.
         for article in self.articles:
             for cluster in xrange(self.numClusters):
-                self.wti[(article, cluster)] = self.calcwti(article, cluster, allzi, maxzi[article])
+                self.wti[(article, cluster)] = self.calc_wti(article, cluster, allzi, maxzi[article])
 
-    def calc_zi(self):
-        allzi = self.allzi()
+    def find_m_zi(self, all_zi):
+        '''
+        Iterate through all the clusters to find the maximum zi value for each article, for future use.
+        :return: m_zi - dictionary of the maximum zi value for each article.
+        '''
+        m_zi = {}
         # Calculate max zi for each document through all clusters.
-        maxzi = {}
-        for (cluster, article), zivalue in allzi.iteritems():
-            if article not in maxzi or maxzi[article] is None or maxzi[article] < zivalue:
-                maxzi[article] = zivalue
-        return allzi, maxzi
+        for (cluster, article), zi in all_zi.iteritems():
+            # m_zi is the max zi value available to the article.
+            if article not in m_zi or m_zi[article] is None or m_zi[article] < zi:
+                m_zi[article] = zi
+        return m_zi
 
-    def likelihood(self, allzi, maxzi):
+    def likelihood(self, all_zi, m_zi):
+        global K
         totalByArticle = {}
+        # Initiate
         for article in self.articles:
             totalByArticle[article] = 0.0
-        # for (cluster, article), zi in allzi.iteritems():
-        #     if zi - maxzi[article] >= -1 * self.k:
-        #         totalByArticle[article] += math.pow(math.e, zi - maxzi[article])
-        # for article in self.articles:
-        #     totalByArticle[article] = maxzi[article] + math.log(totalByArticle[article])
-
+        # Calculate for each article its likelihood
         for article in self.articles:
-            m = maxzi[article]
+            m = m_zi[article]
             exponent_sum = totalByArticle[article]
             for cluster in xrange(self.numClusters):
-                zi = allzi[(cluster, article)]
-                if zi - m >= -1 * self.k:
+                zi = all_zi[(cluster, article)]
+                if zi - m >= -1 * K:
                     exponent_sum += math.pow(math.e, zi - m)
             totalByArticle[article] = math.log(exponent_sum) + m
+        # Sum all together
+        return sum(totalByArticle.itervalues())
 
-        total = sum(totalByArticle.itervalues())
+    # def accuracy(self):
+    #     mona = 0.0
+    #     for article in self.articles:
+    #         max = 0.0
+    #         max_cluster = None
+    #         for cluster in xrange(self.numClusters):
+    #             if self.wti[(article, cluster)] > max:
+    #                 max, max_cluster = self.wti[(article, cluster)], cluster
+    #         if self.topics[max_cluster] in article.clusters:
+    #             mona += 1
+    #
+    #     return mona / float(len(self.articles))
+    #     # return mona / sum(len(article.clusters) for article in self.articles))
 
-        return total
-
-
-    def accuracy(self):
-        mona = 0.0
+    def articles_by_clusters(self):
+        clusters = {}
         for article in self.articles:
-            max = 0.0
-            max_cluster = None
-            for cluster in xrange(self.numClusters):
-                if self.wti[(article, cluster)] > max:
-                    max, max_cluster = self.wti[(article, cluster)], cluster
-            if self.topics[max_cluster] in article.clusters:
-                mona += 1
-
-        return mona / float(len(self.articles))
-        # return mona / sum(len(article.clusters) for article in self.articles))
-
-    def calcFinalClusters(self):
-        tempClusters = {}
-        for article in self.articles:
-            max,index = 0.0 ,0
+            max, index = 0.0, 0
             for cluster in self.clusters.keys():
-                if self.wti[(article,cluster)] > max :
-                    max = self.wti[(article,cluster)]
+                if self.wti[(article, cluster)] > max:
+                    max = self.wti[(article, cluster)]
                     index = cluster
-            if (index not in tempClusters or tempClusters[index] is None):
-                tempClusters[index] = []
-            tempClusters[index].append(article)
-        return tempClusters
+            if (index not in clusters or clusters[index] is None):
+                clusters[index] = []
+            clusters[index].append(article)
+        return clusters
 
-
-
-    def createConfusionMatrix(self):
-        clusters = self.calcFinalClusters()
+    def calc_confusion_matrix(self):
         global NUM_CLUSTERS
+        clusters = self.articles_by_clusters()
         matrix = []
         for i in xrange(NUM_CLUSTERS):
-            new = []
-            dict = {}
+            new_line = []
+            articles_by_topic = {}
+            # Match each article to its corresponding topic
             for article in clusters[i]:
-                if(article.requestedCluster not in dict or dict[article.requestedCluster] is None):
-                    dict[article.requestedCluster] = 0
-                dict[article.requestedCluster] += 1
+                if (article.requestedCluster not in articles_by_topic or articles_by_topic[article.requestedCluster] is None):
+                    articles_by_topic[article.requestedCluster] = 0
+                articles_by_topic[article.requestedCluster] += 1
+            # Build line
             for j in xrange(len(self.topics)):
-                if(self.topics[j] not in dict or dict[self.topics[j]] is None):
-                    dict[self.topics[j]] = 0
-                new.append(dict[self.topics[j]])
-            matrix.append(new)
+                if (self.topics[j] not in articles_by_topic or articles_by_topic[self.topics[j]] is None):
+                    articles_by_topic[self.topics[j]] = 0
+                new_line.append(articles_by_topic[self.topics[j]])
+            # Add row to table
+            matrix.append(new_line)
+        return matrix
 
+    def calc_accuracy(self, confusion_matrix):
+        global NUM_CLUSTERS
         sum = 0.0
         for i in xrange(NUM_CLUSTERS):
-            sum += max(matrix[i])
-            # print str(matrix[i]) + str(" cluster_size= ") + str(sum(matrix[i]))
-        return sum/len(self.articles)
+            sum += max(confusion_matrix[i])
+        return sum / len(self.articles)
