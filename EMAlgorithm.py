@@ -1,12 +1,14 @@
 import math
 
+NUM_CLUSTERS = 9
+LIKELHOOD_TESHOLD = 20.0
 
 class EMAlgorithm:
     def __init__(self, articels, numClusters, ditinctWordLength, topics, wordsTotalLength):
         self.k = 10
         self.wordsTotalLength = wordsTotalLength
         self.epsilon = 0.00001
-        self.lamda = 0.1
+        self.lamda = 1.1
         self.ditinctWordLength = ditinctWordLength
         self.numClusters = numClusters
         self.articles = articels
@@ -69,9 +71,7 @@ class EMAlgorithm:
     def algorithm(self):
         lastlikelihood = None
         allziDict, maxzi = None, None
-        # while True:
-        for i in xrange(30):
-            print str(i) + '\n'
+        while True:
             # E-Step
             if (lastlikelihood != None):
                 self.e_step(allziDict, maxzi)
@@ -83,13 +83,15 @@ class EMAlgorithm:
             allziDict, maxzi = self.calc_zi()
             # Likelihood
             likelihood = self.likelihood(allziDict, maxzi)
-            print str(likelihood) + '\n'
-            if (lastlikelihood != None and likelihood <= lastlikelihood):
+            print "likelhood" + str(likelihood)
+            if (lastlikelihood != None and likelihood-lastlikelihood <= LIKELHOOD_TESHOLD):
+                self.e_step(allziDict, maxzi)
+                print str("accuracy=") + str(self.createConfusionMatrix()) + '\n'
                 break
             lastlikelihood = likelihood
             perplexity = self.calc_perplexity(lastlikelihood)
-            print str(perplexity) + '\n'
-            print str(self.accuracy()) + '\n'
+            print str("perplexity=") + str(perplexity)
+            print str("accuracy=") + str(self.createConfusionMatrix()) + '\n'
 
 
     def calc_perplexity(self, lnlikelihood):
@@ -175,3 +177,41 @@ class EMAlgorithm:
 
         return mona / float(len(self.articles))
         # return mona / sum(len(article.clusters) for article in self.articles))
+
+    def calcFinalClusters(self):
+        tempClusters = {}
+        for article in self.articles:
+            max,index = 0.0 ,0
+            for cluster in self.clusters.keys():
+                if self.wti[(article,cluster)] > max :
+                    max = self.wti[(article,cluster)]
+                    index = cluster
+            if (index not in tempClusters or tempClusters[index] is None):
+                tempClusters[index] = []
+            tempClusters[index].append(article)
+        return tempClusters
+
+
+
+    def createConfusionMatrix(self):
+        clusters = self.calcFinalClusters()
+        global NUM_CLUSTERS
+        matrix = []
+        for i in xrange(NUM_CLUSTERS):
+            new = []
+            dict = {}
+            for article in clusters[i]:
+                if(article.requestedCluster not in dict or dict[article.requestedCluster] is None):
+                    dict[article.requestedCluster] = 0
+                dict[article.requestedCluster] += 1
+            for j in xrange(len(self.topics)):
+                if(self.topics[j] not in dict or dict[self.topics[j]] is None):
+                    dict[self.topics[j]] = 0
+                new.append(dict[self.topics[j]])
+            matrix.append(new)
+
+        sum = 0.0
+        for i in xrange(NUM_CLUSTERS):
+            sum += max(matrix[i])
+            # print str(matrix[i]) + str(" cluster_size= ") + str(sum(matrix[i]))
+        return sum/len(self.articles)

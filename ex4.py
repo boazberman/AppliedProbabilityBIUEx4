@@ -26,8 +26,6 @@ def generateOutputFile(developmentSetFilename, topicsFileName):
     article_list = parse_articles(input_file_data,
                                   filter_word_set=rare_words)
 
-    # articlesWithInfo = parse_file_data(input_file_data)
-    #
     with open(topicsFileName, 'rb') as topic_file:
         topics_file_data = topic_file.read()
     topics = parse_topic_data(topics_file_data)
@@ -37,6 +35,10 @@ def generateOutputFile(developmentSetFilename, topicsFileName):
     #
     emAlgorithm = EMAlgorithm(article_list, NUM_CLUSTERS , len(vocabulary), topics, calcWordsLength(article_list))
     emAlgorithm.algorithm()
+    # emAlgorithm.calcFinalClusters()
+    # clusters = emAlgorithm.clusters
+    # print clusters.keys()
+    # createConfusionMatrix(topics,clusters)
 
 def calcWordsLength(article_list):
     sum = 0
@@ -44,7 +46,6 @@ def calcWordsLength(article_list):
         sum += article.wordsLen
     return sum
 
-# from uri
 def parse_articles(file_data, filter_word_set=set()):
     '''
     parses the input file to a list of articles.
@@ -76,7 +77,6 @@ def parse_articles(file_data, filter_word_set=set()):
         article_list.append(Article(word_count,articleLen, topics))
     return article_list
 
-# from uri
 def parse_file_words(file_data):
     '''
     parses the input file to a sequence (list) of words
@@ -95,15 +95,10 @@ def parse_file_words(file_data):
     # create a list of all the words
     return words.split(' ')
 
-def createConfusionMatrix(topics):
-    global NUM_CLUSTERS
-    # matrix = [[0 for i in xrange(len(topics+1))] for i in xrange(NUM_CLUSTERS)]
-    matrix = []
-    for i in xrange(NUM_CLUSTERS):
-        new = []
-        for j in xrange(len(topics)+1):
-            new.append(0)
-        matrix.append(new)
+
+
+
+
 
 def parse_topic_data(topic_data):
     return topic_data.splitlines()[::2]
