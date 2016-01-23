@@ -245,6 +245,12 @@ class EMAlgorithm:
         return matrix
 
     def calc_accuracy(self, confusion_matrix):
+        '''
+        Calculate the accuracy by dividing the number of correct assignments made by your model by the total number of
+        assignments made by your model.
+        :param confusion_matrix:
+        :return: The calculated accuracy.
+        '''
         global NUM_CLUSTERS
         sum = 0.0
         for i in xrange(NUM_CLUSTERS):
