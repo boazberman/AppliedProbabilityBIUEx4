@@ -166,21 +166,21 @@ class EMAlgorithm:
 
     def likelihood(self, all_zi, m_zi):
         global K
-        totalByArticle = {}
+        total_by_article = {}
         # Initiate
         for article in self.articles:
-            totalByArticle[article] = 0.0
+            total_by_article[article] = 0.0
         # Calculate for each article its likelihood
         for article in self.articles:
             m = m_zi[article]
-            exponent_sum = totalByArticle[article]
+            exponent_sum = total_by_article[article]
             for cluster in xrange(self.clusters_amount):
                 zi = all_zi[(cluster, article)]
                 if zi - m >= -1 * K:
                     exponent_sum += math.pow(math.e, zi - m)
-            totalByArticle[article] = math.log(exponent_sum) + m
+            total_by_article[article] = math.log(exponent_sum) + m
         # Sum all together
-        return sum(totalByArticle.itervalues())
+        return sum(total_by_article.itervalues())
 
     def articles_by_clusters(self):
         clusters = {}
