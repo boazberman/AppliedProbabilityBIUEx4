@@ -241,7 +241,10 @@ class EMAlgorithm:
 
     def calc_confusion_matrix(self):
         '''
-        This function
+        This function calculates the confusion matrix, it iterates each article in the list of articles
+        for each cluster and sums the number of topics.
+        After that, we write to the matrix the new line which represent the sum of each article topics
+        in the i-th cluster.
         :return:
         '''
         global NUM_CLUSTERS
