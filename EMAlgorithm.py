@@ -45,6 +45,11 @@ class EMAlgorithm:
                     self.wti[(article, cluster)] = 0.0
 
     def calc_all_zi(self):
+        '''
+        This function calculates zi for each article and cluster.
+        We calculate it by the formula form the doc.
+        :return: dictionary (key - (cluster,article) , value - zi)
+        '''
         all_zi = {}
         for cluster in xrange(self.clusters_amount):
             for article in self.articles:
