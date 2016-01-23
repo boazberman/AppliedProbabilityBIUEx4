@@ -45,25 +45,38 @@ class EMAlgorithm:
                     self.wti[(article, cluster)] = 0.0
 
     def calc_all_zi(self):
-        allzi = {}
+        all_zi = {}
         for cluster in xrange(self.clusters_amount):
             for article in self.articles:
-                allzi[(cluster, article)] = math.log(self.pCi[cluster]) + (sum(
+                all_zi[(cluster, article)] = math.log(self.pCi[cluster]) + (sum(
                     math.log(self.pik[(word, cluster)]) * appearances for word, appearances in
                     article.histogram.iteritems()))
 
-        return allzi
+        return all_zi
 
-    def calc_wti(self, article, cluster, allzi, maxzi):
+    def calc_wti(self, article, cluster, all_zi, m_zi):
+        '''
+        Calculate the conditional probability of a cluster given some article. This method calculate the probability
+        for each of the possible tuples of cluster and article. Also this method smooth each probability to zero to
+        avoid underflow.
+        :param article:
+        :param cluster:
+        :param all_zi:
+        :param m_zi:
+        :return:
+        '''
         global K
-        if (allzi[(cluster, article)] - maxzi < -1.0 * K):
+        # If zi value of a cluster and article is smaller then max zi value for that article minus a given K value,
+        # smooth it to zero. No calculation needed.
+        if (all_zi[(cluster, article)] - m_zi < -1.0 * K):
             return 0.0
+        # Wti is calculated by summing all zi values for the given article (by iterating throw all clusters)
         mechane = sum(
-            [math.pow(math.e, allzi[(subcluster, article)] - maxzi) for subcluster in xrange(self.clusters_amount) if
-             allzi[(subcluster, article)] - maxzi >= -1.0 * K])
-        return math.pow(math.e, allzi[(cluster, article)] - maxzi) / mechane
+            [math.pow(math.e, all_zi[(subcluster, article)] - m_zi) for subcluster in xrange(self.clusters_amount) if
+             all_zi[(subcluster, article)] - m_zi >= -1.0 * K])
+        return math.pow(math.e, all_zi[(cluster, article)] - m_zi) / mechane
 
-    def fixPCIprobability(self):
+    def fix_pCi_probability(self):
         pciSum = sum(self.pCi)
         for cluster in xrange(self.clusters_amount):
             self.pCi[cluster] /= pciSum
@@ -130,7 +143,7 @@ class EMAlgorithm:
             # Avoid zero or really small values to pCi.
             if (self.pCi[cluster] < EPSILON):
                 self.pCi[cluster] = EPSILON
-        self.fixPCIprobability()
+        self.fix_pCi_probability()
 
     def e_step(self, allzi, maxzi):
         # Calculate wti through all articles and clusters.
