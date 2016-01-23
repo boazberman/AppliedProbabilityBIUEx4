@@ -63,16 +63,10 @@ class EMAlgorithm:
              allzi[(subcluster, article)] - maxzi >= -1.0 * K])
         return math.pow(math.e, allzi[(cluster, article)] - maxzi) / mechane
 
-    # def fixPCIprobability(self):
-    #     pciSum = sum(self.pCi)
-    #     for cluster in xrange(self.clusters_amount):
-    #         self.pCi[cluster] /= pciSum
-    #
-    # def fixPIKProbability(self):
-    #     pikSum = sum(self.pik.itervalues())
-    #     for cluster in xrange(self.clusters_amount):
-    #         for word in self.words:
-    #             self.pik[(word, cluster)] /= pikSum
+    def fixPCIprobability(self):
+        pciSum = sum(self.pCi)
+        for cluster in xrange(self.clusters_amount):
+            self.pCi[cluster] /= pciSum
 
     def algorithm(self):
         last_likelihood = None
@@ -136,6 +130,7 @@ class EMAlgorithm:
             # Avoid zero or really small values to pCi.
             if (self.pCi[cluster] < EPSILON):
                 self.pCi[cluster] = EPSILON
+        self.fixPCIprobability()
 
     def e_step(self, allzi, maxzi):
         # Calculate wti through all articles and clusters.
