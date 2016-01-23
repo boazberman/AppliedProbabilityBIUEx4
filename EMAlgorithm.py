@@ -5,47 +5,48 @@ import itertools
 NUM_CLUSTERS = 9
 LIKELIHOOD_THRESHOLD = 20.0
 K = 10
+EPSILON = 0.00001
 
 
 class EMAlgorithm:
-    def __init__(self, articles, numClusters, ditinctWordLength, topics, wordsTotalLength):
-        self.wordsTotalLength = wordsTotalLength
-        self.epsilon = 0.00001
-        self.lamda = 1.1
-        self.ditinctWordLength = ditinctWordLength
-        self.numClusters = numClusters
+    def __init__(self, articles, clusters_amount, vocabulary_size, topics, total_amount_of_words, lamda):
+        self.total_amount_of_words = total_amount_of_words
+        self.lamda = lamda
+        self.vocabulary_size = vocabulary_size
+        self.clusters_amount = clusters_amount
         self.articles = articles
-        self.clusters = {}
-        self.words = self.get_all_distinct_words()
+        self.words = self.get_all_distinct_words(articles)
         self.wti = {}
         self.pik = {}
-        self.pCi = [0 for i in xrange(numClusters)]
-        self.initClusters()
+        self.pCi = [0 for i in xrange(clusters_amount)]
         self.topics = topics
 
-    def initClusters(self):
+    def dummy_split_articles_to_clusters(self):
+        clusters = {}
         for i in xrange(len(self.articles)):
-            if (i % self.numClusters not in self.clusters or self.clusters[i % self.numClusters] is None):
-                self.clusters[i % self.numClusters] = []
-            self.clusters[i % self.numClusters].append(self.articles[i])
+            if (i % self.clusters_amount not in clusters or clusters[i % self.clusters_amount] is None):
+                clusters[i % self.clusters_amount] = []
+            clusters[i % self.clusters_amount].append(self.articles[i])
+        return clusters
 
-    def get_all_distinct_words(self):
+    def get_all_distinct_words(self, articles):
         words = set()
-        for article in self.articles:
+        for article in articles:
             words.update(article.histogram.keys())
         return words
 
     def first_e_step(self):
+        articles_by_clusters = self.dummy_split_articles_to_clusters()
         for article in self.articles:
-            for cluster in xrange(self.numClusters):
-                if (article in self.clusters[cluster]):
+            for cluster in xrange(self.clusters_amount):
+                if (article in articles_by_clusters[cluster]):
                     self.wti[(article, cluster)] = 1.0
                 else:
                     self.wti[(article, cluster)] = 0.0
 
     def calc_all_zi(self):
         allzi = {}
-        for cluster in xrange(self.numClusters):
+        for cluster in xrange(self.clusters_amount):
             for article in self.articles:
                 allzi[(cluster, article)] = math.log(self.pCi[cluster]) + (sum(
                     math.log(self.pik[(word, cluster)]) * appearances for word, appearances in
@@ -58,33 +59,33 @@ class EMAlgorithm:
         if (allzi[(cluster, article)] - maxzi < -1.0 * K):
             return 0.0
         mechane = sum(
-            [math.pow(math.e, allzi[(subcluster, article)] - maxzi) for subcluster in xrange(self.numClusters) if
+            [math.pow(math.e, allzi[(subcluster, article)] - maxzi) for subcluster in xrange(self.clusters_amount) if
              allzi[(subcluster, article)] - maxzi >= -1.0 * K])
         return math.pow(math.e, allzi[(cluster, article)] - maxzi) / mechane
 
-    def fixPCIprobability(self):
-        pciSum = sum(self.pCi)
-        for cluster in xrange(self.numClusters):
-            self.pCi[cluster] /= pciSum
-
-    def fixPIKProbability(self):
-        pikSum = sum(self.pik.itervalues())
-        for cluster in xrange(self.numClusters):
-            for word in self.words:
-                self.pik[(word, cluster)] /= pikSum
+    # def fixPCIprobability(self):
+    #     pciSum = sum(self.pCi)
+    #     for cluster in xrange(self.clusters_amount):
+    #         self.pCi[cluster] /= pciSum
+    #
+    # def fixPIKProbability(self):
+    #     pikSum = sum(self.pik.itervalues())
+    #     for cluster in xrange(self.clusters_amount):
+    #         for word in self.words:
+    #             self.pik[(word, cluster)] /= pikSum
 
     def algorithm(self):
         last_likelihood = None
         all_zi, m_zi = None, None
-        # while True:
         for iteration in itertools.count(1):
             # E-Step
-            if (last_likelihood != None):
-                self.e_step(all_zi, m_zi)
-            else:
+            if last_likelihood is None:
                 self.first_e_step()
+            else:
+                self.e_step(all_zi, m_zi)
             # M-Step
             self.m_step()
+            # ---- End of actual algorithm.
             # Statistics
             all_zi = self.calc_all_zi()
             m_zi = self.find_m_zi(all_zi)
@@ -97,20 +98,21 @@ class EMAlgorithm:
             print "\tLikelihood: " + str(likelihood)
             print "\tPerplexity: " + str(perplexity)
             print "\tAccuracy: " + str(accuracy) + '\n'
-            # Condition
+            # Break condition
             # If the new calculated likelihood isn't smaller from the last likelihood by at least the
             # given threshold, we're done.
             if (last_likelihood != None and likelihood - last_likelihood <= LIKELIHOOD_THRESHOLD):
                 return confusion_matrix
             last_likelihood = likelihood
 
-    def calc_perplexity(self, lnlikelihood):
-        perplexity_extension = -1 * (lnlikelihood / float(self.wordsTotalLength))
-        return math.pow(math.e, perplexity_extension)
+    def calc_perplexity(self, ln_likelihood):
+        return math.pow(math.e, -1 * (ln_likelihood / float(self.total_amount_of_words)))
 
     def m_step(self):
-        self.calc_pci()
+        self.update_pci()
+        self.update_pik()
 
+    def update_pik(self):
         wordMechaneDict = {}
         wordMonaDict = {}
         for (article, cluster), prob in self.wti.iteritems():
@@ -123,23 +125,22 @@ class EMAlgorithm:
             wordMechaneDict[cluster] += article.wordsLen * prob
         for (word, cluster), mona in wordMonaDict.iteritems():
             self.pik[(word, cluster)] = (
-                (mona + self.lamda) / (wordMechaneDict[cluster] + (self.ditinctWordLength * self.lamda)))
+                (mona + self.lamda) / (wordMechaneDict[cluster] + (self.vocabulary_size * self.lamda)))
 
-    def calc_pci(self):
-        for cluster in xrange(self.numClusters):
+    def update_pci(self):
+        global EPSILON
+        for cluster in xrange(self.clusters_amount):
             self.pCi[cluster] = sum(
                 probability for (doc, somecluster), probability in self.wti.iteritems() if somecluster == cluster)
             self.pCi[cluster] /= len(self.articles)
-            if (self.pCi[cluster] < self.epsilon):
-                self.pCi[cluster] = self.epsilon
-                # print sum(self.pCi)
-                # if (not (sum(self.pCi) == 1)):
-                #     self.fixPCIprobability()
+            # Avoid zero or really small values to pCi.
+            if (self.pCi[cluster] < EPSILON):
+                self.pCi[cluster] = EPSILON
 
     def e_step(self, allzi, maxzi):
         # Calculate wti through all articles and clusters.
         for article in self.articles:
-            for cluster in xrange(self.numClusters):
+            for cluster in xrange(self.clusters_amount):
                 self.wti[(article, cluster)] = self.calc_wti(article, cluster, allzi, maxzi[article])
 
     def find_m_zi(self, all_zi):
@@ -165,7 +166,7 @@ class EMAlgorithm:
         for article in self.articles:
             m = m_zi[article]
             exponent_sum = totalByArticle[article]
-            for cluster in xrange(self.numClusters):
+            for cluster in xrange(self.clusters_amount):
                 zi = all_zi[(cluster, article)]
                 if zi - m >= -1 * K:
                     exponent_sum += math.pow(math.e, zi - m)
@@ -173,25 +174,11 @@ class EMAlgorithm:
         # Sum all together
         return sum(totalByArticle.itervalues())
 
-    # def accuracy(self):
-    #     mona = 0.0
-    #     for article in self.articles:
-    #         max = 0.0
-    #         max_cluster = None
-    #         for cluster in xrange(self.numClusters):
-    #             if self.wti[(article, cluster)] > max:
-    #                 max, max_cluster = self.wti[(article, cluster)], cluster
-    #         if self.topics[max_cluster] in article.clusters:
-    #             mona += 1
-    #
-    #     return mona / float(len(self.articles))
-    #     # return mona / sum(len(article.clusters) for article in self.articles))
-
     def articles_by_clusters(self):
         clusters = {}
         for article in self.articles:
             max, index = 0.0, 0
-            for cluster in self.clusters.keys():
+            for cluster in xrange(self.clusters_amount):
                 if self.wti[(article, cluster)] > max:
                     max = self.wti[(article, cluster)]
                     index = cluster

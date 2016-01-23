@@ -6,9 +6,11 @@ from Article import Article
 from collections import Counter
 
 NUM_CLUSTERS = 9
+LAMDA = 1.1
+
 
 def generateOutputFile(developmentSetFilename, topicsFileName):
-    global NUM_CLUSTERS
+    global NUM_CLUSTERS, LAMDA
     print "Started with: "
     print "\tDevelopment set filename: %s" % developmentSetFilename
     print "\tTopic filename: %s" % topicsFileName
@@ -19,9 +21,8 @@ def generateOutputFile(developmentSetFilename, topicsFileName):
         input_file_data = input_file.read()
 
     develop_word_count = Counter(parse_file_words(input_file_data))
-    rare_words = set(filter(lambda word: develop_word_count[word]<=3,
+    rare_words = set(filter(lambda word: develop_word_count[word] <= 3,
                             develop_word_count.keys()))
-
     vocabulary = set(develop_word_count.keys()) - rare_words
     print 'Vocabulary Length: ', len(vocabulary)
     article_list = parse_articles(input_file_data,
@@ -30,22 +31,31 @@ def generateOutputFile(developmentSetFilename, topicsFileName):
     with open(topicsFileName, 'rb') as topic_file:
         topics_file_data = topic_file.read()
     topics = parse_topic_data(topics_file_data)
-    # createConfusionMatrix(topics)
-    #
-    # typedArticles = [Article(article, info) for info, article in articlesWithInfo]
-    #
-    emAlgorithm = EMAlgorithm(article_list, NUM_CLUSTERS , len(vocabulary), topics, calcWordsLength(article_list))
+    print "\tVocabulary size: %s" % len((vocabulary))
+    print "\tLambda: %s\n" % LAMDA
+    emAlgorithm = EMAlgorithm(article_list, NUM_CLUSTERS, len(vocabulary), topics, count_total_words(article_list), LAMDA)
     confusion_matrix = emAlgorithm.algorithm()
     print "Confusion Matrix:"
+    # Print in a table looking way the confusion matrix
     print '\n'.join(map('\t|\t'.join, [map(str, item) for item in prettify_confusion_matrix(topics, confusion_matrix)]))
 
-def calcWordsLength(article_list):
-    sum = 0
-    for article in article_list:
-        sum += article.wordsLen
-    return sum
+
+def count_total_words(article_list):
+    '''
+    Count the number of words in all the articles given.
+    :param article_list: A list of {Article}.
+    :return: The number of words in all articles.
+    '''
+    return sum(article.wordsLen for article in article_list)
+
 
 def prettify_confusion_matrix(topics, confusion_matrix):
+    '''
+    Transform the confusion matrix to an informative table.
+    :param topics: List of topics
+    :param confusion_matrix: The confusion matrix.
+    :return:
+    '''
     for row in confusion_matrix:
         # Add cluster size column
         row.append(sum(row))
@@ -59,6 +69,7 @@ def prettify_confusion_matrix(topics, confusion_matrix):
     # Add header row at the start of the matrix
     pretty.insert(0, [" "] + topics + ["cluster size", "max"])
     return pretty
+
 
 def parse_articles(file_data, filter_word_set=set()):
     '''
@@ -88,8 +99,9 @@ def parse_articles(file_data, filter_word_set=set()):
         for word in filter_word_set.intersection(word_count.keys()):
             del word_count[word]
         articleLen = sum(appearences for appearences in word_count.itervalues())
-        article_list.append(Article(word_count,articleLen, topics))
+        article_list.append(Article(word_count, articleLen, topics))
     return article_list
+
 
 def parse_file_words(file_data):
     '''
@@ -110,12 +122,9 @@ def parse_file_words(file_data):
     return words.split(' ')
 
 
-
-
-
-
 def parse_topic_data(topic_data):
     return topic_data.splitlines()[::2]
+
 
 def parse_file_data(file_data):
     '''
@@ -137,10 +146,9 @@ def parse_file_data(file_data):
 
 
 def main():
-    # if len(sys.argv) != 4:
-    #   print "How to use: " + sys.argv[
-    #     0] + " < development_set_filename > < test_set_filename > < INPUT WORD > < output_filename >"
-    #  sys.exit(1)
+    if len(sys.argv) != 3:
+        print "How to use: %s < development_set_filename > < topics_filename >" % sys.argv[0]
+        sys.exit(1)
 
     development_file_path = sys.argv[1]
     topic_file_path = sys.argv[2]
@@ -151,4 +159,4 @@ def main():
 if __name__ == '__main__':
     start_time = time.time()
     main()
-    print "--- %s seconds ---" % (time.time() - start_time)
+    print "--- The program took: %s seconds ---" % (time.time() - start_time)
