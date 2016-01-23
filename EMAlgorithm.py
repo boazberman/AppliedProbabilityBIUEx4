@@ -122,6 +122,10 @@ class EMAlgorithm:
                 (mona + self.lamda) / (wordMechaneDict[cluster] + (self.vocabulary_size * self.lamda)))
 
     def update_pci(self):
+        '''
+        In this function we calculate the PCI for each cluster.
+        :return:
+        '''
         global EPSILON
         for cluster in xrange(self.clusters_amount):
             self.pCi[cluster] = sum(
@@ -133,6 +137,13 @@ class EMAlgorithm:
         self.fixPCIprobability()
 
     def e_step(self, allzi, maxzi):
+        '''
+        This function represent the E step in the algorithm.
+        We calculate Wti for each article and cluster
+        :param allzi: zi as described in the Pdf document (for each article and cluster)
+        :param maxzi: array of the maximum zi for each article
+        :return:
+        '''
         # Calculate wti through all articles and clusters.
         for article in self.articles:
             for cluster in xrange(self.clusters_amount):
@@ -152,6 +163,13 @@ class EMAlgorithm:
         return m_zi
 
     def likelihood(self, all_zi, m_zi):
+        '''
+        In this function we calculate the likelihood by iterating over maxzi and all_zi for
+        each article and cluster.
+        :param all_zi:
+        :param m_zi:
+        :return:
+        '''
         global K
         totalByArticle = {}
         # Initiate
@@ -170,6 +188,12 @@ class EMAlgorithm:
         return sum(totalByArticle.itervalues())
 
     def articles_by_clusters(self):
+        '''
+        In this function we build a map from cluster to list of articles.
+        The list of articles is the articles that has the maximum WTI with the cluster.
+        For each article we take the maximum WTI and append the article to the maximum cluster.
+        :return:
+        '''
         clusters = {}
         for article in self.articles:
             max, index = 0.0, 0
@@ -183,6 +207,10 @@ class EMAlgorithm:
         return clusters
 
     def calc_confusion_matrix(self):
+        '''
+        This function
+        :return:
+        '''
         global NUM_CLUSTERS
         clusters = self.articles_by_clusters()
         matrix = []
