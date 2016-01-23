@@ -77,6 +77,10 @@ class EMAlgorithm:
         return math.pow(math.e, all_zi[(cluster, article)] - m_zi) / mechane
 
     def fix_pCi_probability(self):
+        '''
+        Reallocate distribution in order for the pCi values to add up to 1.
+        :return: None
+        '''
         pciSum = sum(self.pCi)
         for cluster in xrange(self.clusters_amount):
             self.pCi[cluster] /= pciSum
@@ -84,6 +88,7 @@ class EMAlgorithm:
     def algorithm(self):
         last_likelihood = None
         all_zi, m_zi = None, None
+        # Iterate from 1 to infinity until the break condition is met.
         for iteration in itertools.count(1):
             # E-Step
             if last_likelihood is None:
@@ -113,13 +118,27 @@ class EMAlgorithm:
             last_likelihood = likelihood
 
     def calc_perplexity(self, ln_likelihood):
+        '''
+        Calculate how well a probabilistic model predicts a sample (Perplexity).
+        :param ln_likelihood:
+        :return: The calculated perplexity.
+        '''
         return math.pow(math.e, -1 * (ln_likelihood / float(self.total_amount_of_words)))
 
     def m_step(self):
+        '''
+        M-step's goal is to update the pci values and the pik values used by the E-step.
+        :return: None
+        '''
         self.update_pci()
         self.update_pik()
 
     def update_pik(self):
+        '''
+        Iterate through all wti values which exists for each article and cluster tuple and calculate the probability of
+        each word to appear in any given cluster. The updated values are inserted to {self.wti}.
+        :return: None
+        '''
         wordMechaneDict = {}
         wordMonaDict = {}
         for (article, cluster), prob in self.wti.iteritems():
@@ -147,6 +166,7 @@ class EMAlgorithm:
             # Avoid zero or really small values to pCi.
             if (self.pCi[cluster] < EPSILON):
                 self.pCi[cluster] = EPSILON
+        # After smoothing there is a need to reallocate distribution in order for the pCi values to add up to 1.
         self.fix_pCi_probability()
 
     def e_step(self, allzi, maxzi):
