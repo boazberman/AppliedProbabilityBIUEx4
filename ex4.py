@@ -1,4 +1,3 @@
-# Saar Arbel 315681775, Boaz Berman 311504401
 import sys
 import time
 from EMAlgorithm import EMAlgorithm
